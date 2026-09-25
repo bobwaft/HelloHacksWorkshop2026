@@ -8,15 +8,31 @@ const types = [
 
 function App() {
   const [selectedType, setSelectedType] = useState('')
+  const [result, setResult] = useState(null)
 
-  function getMatchup(type) {
-    // API CALL WILL GO HERE, AND WE WILL RETURN THE RESPONSE
-    return `Fake API response: You are fighting a ${type}-type Pokémon.`;
+  async function getMatchup(type) {
+    try {
+      const response = await fetch(`http://localhost:3000/api/${encodeURIComponent(type.toLowerCase())}`)
+      const body = await response.text()
+
+      if (!response.ok) {
+        throw new Error(body || `Request failed with status ${response.status}`)
+      }
+
+      try {
+        return JSON.parse(body)
+      } catch {
+        return body
+      }
+    } catch (error) {
+      console.error('Could not get matchup:', error)
+      return { error: 'Could not load the matchup. Make sure the backend is running.' }
+    }
   }
 
-  function handleTypeClick(type) {
-    const response = getMatchup(type);
-    setResult(response);
+  async function handleTypeClick(type) {
+    setSelectedType(type)
+    setResult(await getMatchup(type))
   }
 
   return (
@@ -37,7 +53,7 @@ function App() {
             <button
               key={name}
               type="button"
-              onClick={() => handleTypeClick(type.name)}
+              onClick={() => handleTypeClick(name)}
               className={`${color} rounded-xl px-4 py-3 font-bold text-white shadow-sm transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-800`}
             >
               {name}
@@ -54,7 +70,18 @@ function App() {
 
         {selectedType && (
           <p aria-live="polite" className="mt-5 text-center font-semibold text-slate-700">
-            You clicked: {selectedType}
+            {typeof result === 'string' ? result : result?.error ? result.error : (
+              <>
+                You clicked: {selectedType}
+                {result && (
+                  <span className="mt-2 block text-sm font-normal">
+                    Half damage to: {result.half_damage_to?.join(', ') || 'none'}
+                    <br />
+                    Double damage from: {result.double_damage_from?.join(', ') || 'none'}
+                  </span>
+                )}
+              </>
+            )}
           </p>
         )}
       </section>
